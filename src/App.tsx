@@ -1,58 +1,107 @@
+import { Box, Flex, HStack, Stack } from "@chakra-ui/react";
 import React from "react";
-import { Car } from "./components/Car";
 import { Canvas } from "./components/Canvas";
+import rawMap from "./public/map.txt?raw";
 
-const symbolMap = {
-  "-": Car,
+interface Cell {
+  type: "empty" | "road" | "traffic-light" | "car";
+  component: React.ReactNode;
+}
+
+type Map = Cell[][];
+
+interface Car {
+  x: number;
+  y: number;
+}
+
+const symbolToCell = (symbol: string): Cell => {
+  switch (symbol) {
+    case " ":
+      return {
+        type: "empty",
+        component: <Box w={10} h={10} bg="white" />,
+      };
+    case "-":
+      return {
+        type: "road",
+        component: <Box w={10} h={10} bg="blue.200" />,
+      };
+    case "|":
+      return {
+        type: "road",
+        component: <Box w={10} h={10} bg="blue.200" />,
+      };
+    case "+":
+      return {
+        type: "traffic-light",
+        component: <Box w={10} h={10} bg="red.200" />,
+      };
+    case "*": {
+      return {
+        type: "car",
+        component: <Box w={10} h={10} bg="green.200" />,
+      };
+    }
+    default:
+      throw new Error(`Symbol ${symbol} in map not supported`);
+  }
 };
 
-const radian = (n: number) => n * (Math.PI / 180);
+const draw = (map: Map, car: Car): Map => {
+  return map.map((row, y) => {
+    return row.map((cell, x) => {
+      if (y === car.y && x === car.x) {
+        return symbolToCell("*");
+      }
 
-const draw = (canvas: HTMLCanvasElement, rotation: number) => {
-  const context = canvas.getContext("2d");
+      return cell;
+    });
+  });
+};
 
-  if (!context) {
-    return;
-  }
-
-  const hehe = new Image();
-  hehe.src =
-    "https://cdn.discordapp.com/emojis/828367695846047804.webp?size=240&quality=lossless";
-
-  context.rotate(rotation);
-  const imageWidth = hehe.width;
-  const imageHeight = hehe.height;
-
-  const canvasCenterX = canvas.width / 2;
-  const canvasCenterY = canvas.height / 2;
-
-  const imageX = canvasCenterX - imageWidth / 2;
-  const imageY = canvasCenterY - imageHeight / 2;
-
-  context.drawImage(hehe, imageX, imageY, imageWidth, imageHeight);
+const getNewCar = (car: Car): Car => {
+  return { ...car, x: car.x + 1 };
 };
 
 export const App = () => {
-  const canvasRef = React.useRef<HTMLCanvasElement>(null);
-  const [rotation, setRotation] = React.useState(0);
+  const initialMap = rawMap.split("\n").map((line) =>
+    line.split("").map((symbol) => {
+      return symbolToCell(symbol);
+    })
+  );
+
+  const [map, setMap] = React.useState<Map>(initialMap);
+  const [car, setCar] = React.useState<Car>({ x: 0, y: 9 });
 
   React.useEffect(() => {
     const interval = setInterval(() => {
-      setRotation((r) => r + radian(1));
-    }, 500);
+      const newCar = { ...car, x: car.x + 1 };
+      const newMap = draw(initialMap, newCar);
+
+      console.log({ newCar });
+
+      setCar(newCar);
+      setMap(newMap);
+    }, 2000);
 
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [car]);
 
-  React.useEffect(() => {
-    if (!canvasRef.current) {
-      return;
-    }
+  const rows = map.map((row, index) => {
+    const rowComponents = row.map((cell) => cell.component);
+    return (
+      <Stack direction="row" w="full" h="full" key={index}>
+        {rowComponents}
+      </Stack>
+    );
+  });
 
-    draw(canvasRef.current, rotation);
-  }, [rotation]);
-
-  return <Canvas ref={canvasRef} width="800px" height="600px" />;
+  return (
+    <Stack w="full" h="full">
+      {rows}
+    </Stack>
+  );
 };
